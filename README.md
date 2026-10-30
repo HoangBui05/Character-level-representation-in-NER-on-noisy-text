@@ -243,7 +243,7 @@ Cài PyTorch theo đúng phiên bản CUDA hoặc CPU tương thích với máy 
 
 ### Chạy
 
-1. Mở `wnut17_character_ner_tuned.ipynb` bằng Jupyter hoặc VS Code.
+1. Mở `wnut17_character_ner.ipynb` bằng Jupyter hoặc VS Code.
 2. Chọn Python kernel có PyTorch và các thư viện trên.
 3. Chạy lần lượt từ trên xuống (`Run All`); lần đầu cần Internet để tải WNUT 17 từ Hugging Face.
 4. Notebook mặc định chạy hyperparameter search (`RUN_TUNING = True`), sau đó train ba mô hình và tạo các file CSV ở thư mục làm việc.
