@@ -32,9 +32,9 @@ Thí nghiệm sử dụng WNUT 17 và ba mô hình PyTorch huấn luyện hoàn 
 2. **Baseline 2 / ablation tắt character:** word embedding → BiLSTM → CRF.
 3. **Mô hình đề xuất:** word embedding + character CNN → BiLSTM → CRF.
 
-Hai mô hình thứ hai và thứ ba giữ cùng word encoder và CRF, khác nhau ở việc có hay không có character encoder. Vì vậy, phép so sánh này là ablation trực tiếp để khảo sát đóng góp của đặc trưng ký tự. Không sử dụng mô hình pretrained hoặc pretrained embeddings.
+Mô hình thứ hai là ablation tắt character của mô hình thứ ba, cùng dùng CRF. Notebook tìm siêu tham số riêng cho từng mô hình với cùng ngân sách và cùng dãy cấu hình ứng viên; vì cấu hình được chọn có thể khác nhau, so sánh này không cô lập tuyệt đối riêng tác động của character encoder. Không sử dụng mô hình pretrained hoặc pretrained embeddings.
 
-Trên lần chạy hiện tại, mô hình word+character đạt F1 exact-span **0,0910** trên nhóm unseen, so với **0,0441** của word-only CRF. Bootstrap 95% CI của mức chênh lệch là **[0,0265; 0,0655]**. Trên nhóm rare, F1 tăng từ **0,1538** lên **0,3243**, nhưng CI **[-0,0143; 0,3846]** còn chứa 0 và nhóm này chỉ có 22 thực thể; vì vậy chưa đủ bằng chứng để kết luận cải thiện chắc chắn.
+Notebook phiên bản tuned chọn siêu tham số bằng random search trên validation rồi huấn luyện lại từng mô hình. Trong kết quả đã lưu, word+character đạt F1 exact-span **0,1475** trên nhóm unseen, so với **0,0752** của word-only CRF; bootstrap 95% CI của mức chênh lệch là **[0,0489; 0,0974]**. Trên nhóm rare, F1 của mô hình có character là **0,0000**, thấp hơn **0,1538** của word-only CRF; nhóm này chỉ có 22 thực thể nên kết quả còn nhiều bất định.
 
 ## 3. Mô tả bộ dữ liệu
 
@@ -65,21 +65,21 @@ Dataset cung cấp sẵn cả ba split nên notebook không tách validation t�
 
 Việc xác định các nhóm chỉ dựa trên train, không dùng nhãn test để xây vocabulary hoặc tính tần suất. Trên test có **1.079 gold entity**: **1.055 unseen**, **22 rare** và **2 frequent**. Phân bố rất lệch về unseen; support của frequent quá nhỏ để rút ra kết luận đáng tin cậy.
 
-**Giới hạn của định nghĩa:** unseen ở đây nghĩa là *surface form entity* chưa từng xuất hiện trong train, không đồng nghĩa mọi token trong entity đều là từ OOV. Phép đo cũng không tạo các biến thể nhiễu tổng hợp để kiểm tra riêng tác động của lỗi chính tả, viết tắt hay kéo dài ký tự.
+**Giới hạn của định nghĩa:** unseen ở đây nghĩa là *surface form entity* chưa từng xuất hiện trong train, không đồng nghĩa mọi token trong entity đều là từ OOV. Tỷ lệ token OOV so với word vocabulary train trong lần chạy notebook là **16,7% trên validation** và **21,9% trên test**. Phép đo không tạo các biến thể nhiễu tổng hợp để kiểm tra riêng tác động của lỗi chính tả, viết tắt hay kéo dài ký tự.
 
 ## 4. Cấu trúc notebook và diễn biến thực nghiệm
 
-Toàn bộ mã nguồn, quy trình huấn luyện, đánh giá và phân tích lỗi nằm trong [`wnut17_character_ner.ipynb`](./wnut17_character_ner.ipynb). Các cell được tổ chức theo thứ tự:
+Toàn bộ mã nguồn, quy trình huấn luyện, đánh giá và phân tích lỗi nằm trong [`wnut17_character_ner_tuned.ipynb`](./wnut17_character_ner_tuned.ipynb). Các cell được tổ chức theo thứ tự:
 
 1. **Thiết lập thí nghiệm:** import thư viện, seed, device, hyperparameter và cấu hình reproducibility.
 2. **Nạp dữ liệu:** tải WNUT 17, kiểm tra features, nhãn và số lượng từng split.
 3. **Chuẩn hóa dữ liệu:** ánh xạ mã nhãn sang BIO; trích xuất span và đếm tần suất surface form trên train để gán nhóm unseen/rare/frequent.
-4. **Vocabulary và batching:** tạo word/character vocabulary từ train; padding chuỗi và gom batch; từ OOV ánh xạ về `<UNK>`.
+4. **Vocabulary và batching:** tạo word/character vocabulary chỉ từ train; word hiếm được thay bằng `<UNK>` ngẫu nhiên trong lúc train để học embedding cho từ OOV; giới hạn token ở 30 ký tự.
 5. **Định nghĩa mô hình:** xây CRF tuyến tính, word/character encoder và ba cấu hình mô hình so sánh.
-6. **Huấn luyện:** train trên train, đo validation, chọn checkpoint theo entity-level validation F1; dừng sớm khi metric không cải thiện.
-7. **Đánh giá trên test:** giải mã chuỗi nhãn, trích xuất span và tính precision/recall/F1 exact-span theo từng nhóm.
-8. **Ablation và bootstrap:** so sánh word+character với word-only CRF bằng chênh lệch F1 và bootstrap confidence interval.
-9. **Phân tích lỗi:** liệt kê các span bị bỏ sót hoặc dự đoán thừa/sai ranh giới, kèm câu chứa lỗi và nhóm entity.
+6. **Tối ưu siêu tham số:** random search 8 cấu hình cho mỗi mô hình; chọn theo entity-level validation F1, hòa thì dùng validation loss thấp hơn.
+7. **Huấn luyện:** huấn luyện lại từng mô hình bằng cấu hình được chọn, tối đa 30 epoch và early stopping theo validation.
+8. **Đánh giá trên test:** giải mã chuỗi nhãn, trích xuất span và tính precision/recall/F1 exact-span theo từng nhóm.
+9. **Ablation, bootstrap và phân tích lỗi:** so sánh word+character với word-only CRF bằng paired bootstrap theo câu; xuất bảng metrics, CI và các lỗi FN/FP.
 
 ## 5. Xây dựng mô hình
 
@@ -87,17 +87,18 @@ Toàn bộ mã nguồn, quy trình huấn luyện, đánh giá và phân tích l
 
 - **Word vocabulary:** tạo từ token train; chỉ số 0 dành cho padding và từ ngoài vocabulary dùng `<UNK>`.
 - **Character vocabulary:** tạo từ các ký tự xuất hiện trong token train; ký tự padding và ký tự không biết có chỉ số riêng.
-- Vocabularies không được xây bằng validation/test. Các embedding được khởi tạo ngẫu nhiên và học trong quá trình train.
-- Câu được padding theo độ dài lớn nhất trong batch. `pack_padded_sequence` ngăn BiLSTM xử lý phần padding ở cuối câu. Mask độ dài ký tự được dùng khi pooling đầu ra CNN.
+- Vocabularies không được xây bằng validation/test. Word/character embeddings được khởi tạo ngẫu nhiên và học trong quá trình train.
+- Khi train, xác suất thay một từ bằng `<UNK>` là `alpha / (count + alpha)`; cách này giúp embedding `<UNK>` nhận được tín hiệu học dù từ OOV không có trong train.
+- Token dài hơn **30 ký tự** bị cắt để giới hạn bộ nhớ. Câu được padding theo độ dài lớn nhất trong batch; `pack_padded_sequence` ngăn BiLSTM xử lý phần padding ở cuối câu. Mask độ dài ký tự được dùng khi pooling đầu ra CNN.
 - Nhãn padding bị loại khỏi token loss. CRF dùng độ dài thực của từng câu khi tính xác suất chuỗi và giải mã.
 
 ### 5.2. Baseline 1 — Word-BiLSTM-Softmax
 
-1. Tra cứu vector word embedding kích thước **100** cho từng token.
-2. Đưa chuỗi vector qua BiLSTM hai chiều, hidden size **64 mỗi hướng**.
-3. Ghép hai hướng, áp dụng dropout **0,2**.
+1. Tra cứu vector word embedding cho từng token.
+2. Đưa chuỗi vector qua BiLSTM hai chiều.
+3. Ghép hai hướng, áp dụng dropout.
 4. Linear classifier dự đoán phân phối nhãn BIO độc lập tại từng token.
-5. Huấn luyện bằng weighted cross-entropy, bỏ qua vị trí padding.
+5. Huấn luyện bằng cross-entropy, bỏ qua vị trí padding.
 
 Baseline này thể hiện cấu hình tuần tự hóa nhãn bằng BiLSTM nhưng không dùng CRF để mô hình hóa phụ thuộc nhãn giữa các token.
 
@@ -105,38 +106,31 @@ Baseline này thể hiện cấu hình tuần tự hóa nhãn bằng BiLSTM như
 
 Encoder đầu vào vẫn chỉ dùng word embedding, sau đó qua cùng BiLSTM và linear layer. CRF học điểm chuyển tiếp giữa các nhãn, điểm bắt đầu/kết thúc chuỗi và giải mã chuỗi nhãn có tổng điểm cao nhất bằng Viterbi.
 
-Đây là baseline mạnh hơn để so sánh character: nó giữ CRF như mô hình đề xuất, chỉ loại bỏ character CNN. Vì vậy, chênh lệch giữa baseline này và mô hình đề xuất ít bị nhiễu bởi thay đổi decoder.
+Đây là baseline mạnh hơn để so sánh character: nó giữ CRF như mô hình đề xuất nhưng không có character CNN. Chênh lệch không bị nhiễu bởi thay đổi decoder, dù các siêu tham số tốt nhất của hai mô hình được chọn riêng và không nhất thiết giống nhau.
 
 ### 5.4. Mô hình đề xuất — Word+Character CNN-BiLSTM-CRF
 
-1. **Word path:** embedding kích thước 100.
-2. **Character path:** embedding ký tự kích thước 30; `Conv1d` với 50 filter, kernel size 3 và padding 1; ReLU; max-pooling trên các vị trí ký tự hợp lệ để thu một vector cho mỗi token.
-3. Ghép vector word 100 chiều và character 50 chiều thành biểu diễn token 150 chiều.
-4. Đưa chuỗi biểu diễn token qua cùng BiLSTM hai chiều và dropout.
+1. **Word path:** embedding từ.
+2. **Character path:** embedding ký tự; `Conv1d` với kernel size 3, ReLU và max-pooling trên các vị trí ký tự hợp lệ để thu một vector cho mỗi token.
+3. Ghép vector word và character thành biểu diễn token.
+4. Đưa chuỗi biểu diễn token qua BiLSTM hai chiều và dropout.
 5. Linear layer tạo emission score; CRF tính loss chuỗi và Viterbi giải mã nhãn.
 
 Character CNN học đặc trưng hình thái/chính tả của token, có thể chia sẻ tín hiệu giữa những từ có ký tự hoặc chuỗi con tương tự, kể cả khi toàn bộ từ chưa có trong word vocabulary.
 
-### 5.5. Cấu hình huấn luyện
+### 5.5. Huấn luyện và tối ưu siêu tham số
 
-| Tham số | Giá trị |
-|---|---:|
-| Seed | 42 |
-| Epoch tối đa | 12 |
-| Batch size | 32 |
-| Word embedding | 100 |
-| Character embedding | 30 |
-| Character CNN | 50 filter, kernel size 3 |
-| BiLSTM hidden size | 64 mỗi hướng |
-| Dropout | 0,2 |
-| Optimizer | Adam |
-| Learning rate | 0,001 |
-| Gradient clipping | 5,0 |
-| Early stopping patience | 4 epoch |
+Notebook đặt seed **42**, dùng Adam và gradient clipping **5,0**. Tối đa **30 epoch**, early stopping patience **8** theo validation entity-F1. Trước khi huấn luyện đầy đủ, random search thử **8 cấu hình cho mỗi mô hình** (mỗi lượt tối đa 15 epoch, patience 4); ba mô hình dùng cùng dãy cấu hình ngẫu nhiên và cùng ngân sách. Không gian tìm kiếm gồm learning rate, hidden size, dropout, word/character embedding, số filter CNN, hệ số thay từ bằng `<UNK>` và batch size. Chọn cấu hình theo validation entity-F1; nếu hòa, ưu tiên validation loss thấp hơn. Test không tham gia chọn cấu hình hoặc checkpoint.
 
-Để xử lý mất cân bằng giữa nhãn `O` và các nhãn entity, notebook dùng trọng số lớp tỷ lệ với căn bậc hai của nghịch đảo tần suất nhãn train. Với mô hình CRF, objective cộng CRF negative log-likelihood và **0,5 × weighted token cross-entropy**; thành phần token-level giúp cung cấp thêm tín hiệu học trong điều kiện nhãn entity thưa.
+Các cấu hình tốt nhất được chọn trong lần chạy lưu trong notebook:
 
-Checkpoint được chọn theo **entity exact-span F1 trên validation**; nếu bằng điểm thì ưu tiên validation loss thấp hơn. Thiết lập này phù hợp mục tiêu entity-level hơn việc chọn checkpoint chỉ dựa vào loss.
+| Mô hình | Learning rate | Word dim | Char dim | CNN filters | BiLSTM hidden mỗi hướng | Dropout | α `<UNK>` | Batch |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Word-BiLSTM-Softmax | 0,003909 | 200 | — | — | 256 | 0,6 | 2,0 | 16 |
+| Word-BiLSTM-CRF (ablation) | 0,003909 | 200 | — | — | 256 | 0,6 | 2,0 | 16 |
+| Word+CharCNN-BiLSTM-CRF | 0,001388 | 50 | 50 | 30 (kernel 3) | 256 | 0,5 | 0,5 | 32 |
+
+Softmax dùng cross-entropy; hai mô hình CRF dùng negative log-likelihood của CRF. Mỗi mô hình chỉ dùng loss tương ứng với decoder, không dùng class weight hay loss phụ. Ablation và mô hình đề xuất giữ cùng decoder/loss CRF, nhưng cấu hình siêu tham số được chọn riêng nên không phải phép so sánh chỉ thay đổi duy nhất encoder ký tự.
 
 ## 6. Phương pháp đánh giá và metrics
 
@@ -178,64 +172,63 @@ Các con số là kết quả của một lần chạy, một cấu hình và m�
 
 | Mô hình | Nhóm entity | Precision | Recall | F1 | Support |
 |---|---|---:|---:|---:|---:|
-| Baseline 1: Word-BiLSTM-Softmax | Tất cả | 0,0548 | 0,0111 | 0,0185 | 1.079 |
-| Baseline 1: Word-BiLSTM-Softmax | Unseen | 0,0563 | 0,0114 | 0,0189 | 1.055 |
-| Baseline 1: Word-BiLSTM-Softmax | Rare (1–2) | 0,0000 | 0,0000 | 0,0000 | 22 |
+| Baseline 1: Word-BiLSTM-Softmax | Tất cả | 0,1165 | 0,0334 | 0,0519 | 1.079 |
+| Baseline 1: Word-BiLSTM-Softmax | Unseen | 0,1126 | 0,0322 | 0,0501 | 1.055 |
+| Baseline 1: Word-BiLSTM-Softmax | Rare (1–2) | 0,4000 | 0,0909 | 0,1481 | 22 |
 | Baseline 1: Word-BiLSTM-Softmax | Frequent (3+) | 0,0000 | 0,0000 | 0,0000 | 2 |
-| Baseline 2 / ablation: Word-BiLSTM-CRF | Tất cả | 0,1174 | 0,0287 | 0,0462 | 1.079 |
-| Baseline 2 / ablation: Word-BiLSTM-CRF | Unseen | 0,1115 | 0,0275 | 0,0441 | 1.055 |
+| Baseline 2 / ablation: Word-BiLSTM-CRF | Tất cả | 0,1738 | 0,0491 | 0,0766 | 1.079 |
+| Baseline 2 / ablation: Word-BiLSTM-CRF | Unseen | 0,1694 | 0,0483 | 0,0752 | 1.055 |
 | Baseline 2 / ablation: Word-BiLSTM-CRF | Rare (1–2) | 0,5000 | 0,0909 | 0,1538 | 22 |
 | Baseline 2 / ablation: Word-BiLSTM-CRF | Frequent (3+) | 0,0000 | 0,0000 | 0,0000 | 2 |
-| Proposed: Word+CharCNN-BiLSTM-CRF | Tất cả | 0,0813 | 0,1121 | **0,0943** | 1.079 |
-| Proposed: Word+CharCNN-BiLSTM-CRF | Unseen | 0,0781 | 0,1090 | **0,0910** | 1.055 |
-| Proposed: Word+CharCNN-BiLSTM-CRF | Rare (1–2) | 0,4000 | 0,2727 | **0,3243** | 22 |
+| Proposed: Word+CharCNN-BiLSTM-CRF | Tất cả | 0,2153 | 0,1094 | **0,1451** | 1.079 |
+| Proposed: Word+CharCNN-BiLSTM-CRF | Unseen | 0,2165 | 0,1118 | **0,1475** | 1.055 |
+| Proposed: Word+CharCNN-BiLSTM-CRF | Rare (1–2) | 0,0000 | 0,0000 | **0,0000** | 22 |
 | Proposed: Word+CharCNN-BiLSTM-CRF | Frequent (3+) | 0,0000 | 0,0000 | 0,0000 | 2 |
 
 ### 7.2. Ablation: chênh lệch F1 của character representation
 
 | Nhóm | F1 word+character | F1 word-only CRF | ΔF1 | Bootstrap 95% CI |
 |---|---:|---:|---:|---:|
-| Tất cả | 0,0943 | 0,0462 | +0,0481 | [0,0277; 0,0662] |
-| Unseen | 0,0910 | 0,0441 | **+0,0469** | **[0,0265; 0,0655]** |
-| Rare (1–2) | 0,3243 | 0,1538 | +0,1705 | [-0,0143; 0,3846] |
+| Tất cả | 0,1451 | 0,0766 | +0,0685 | [0,0439; 0,0929] |
+| Unseen | 0,1475 | 0,0752 | **+0,0723** | **[0,0489; 0,0974]** |
+| Rare (1–2) | 0,0000 | 0,1538 | -0,1538 | [-0,3529; 0,0000] |
 | Frequent (3+) | 0,0000 | 0,0000 | 0,0000 | [0,0000; 0,0000] |
 
 ### 7.3. Nhận xét
 
-- Trên **unseen**, F1 của mô hình có character tăng khoảng 0,0469 điểm so với ablation word-only CRF; CI bootstrap không chứa 0. Đây là bằng chứng ủng hộ character representation cho nhóm này trong thí nghiệm hiện tại.
-- Trên **rare**, F1 quan sát tăng khoảng 0,1705 điểm, nhưng CI chứa 0 và support chỉ 22. Có tín hiệu tích cực, chưa đủ cơ sở để kết luận chắc chắn.
-- Trên toàn bộ test, mô hình đề xuất có F1 cao hơn word-only CRF (0,0943 so với 0,0462), nhưng precision vẫn thấp (0,0813). Recall tăng không đảm bảo dự đoán entity đã chính xác.
-- Baseline 1 thấp hơn baseline 2 trong lần chạy này. Điều đó cho thấy CRF giúp kết quả của cấu hình word-only hiện tại, nhưng không tách biệt tác động của CRF với các yếu tố khác nếu chỉ dựa trên một lần chạy.
+- Trên **unseen**, F1 của mô hình có character cao hơn word-only CRF 0,0723; CI bootstrap không chứa 0. Đây là bằng chứng ủng hộ character representation cho nhóm này trong lần chạy hiện tại.
+- Trên **rare**, mô hình có character không nhận diện đúng entity nào (F1 0,0000 so với 0,1538 của CRF word-only). CI có cận trên bằng 0 và support chỉ 22, nên kết quả nhóm này còn nhiều bất định.
+- Trên toàn bộ test, mô hình đề xuất có F1 cao hơn word-only CRF (0,1451 so với 0,0766), đồng thời recall cao hơn (0,1094 so với 0,0491). Đây là kết quả của cấu hình đã chọn bằng validation, không đảm bảo sẽ lặp lại ở seed khác.
+- Baseline 2 có F1 cao hơn baseline 1 trong lần chạy này (0,0766 so với 0,0519). Tuy nhiên, do siêu tham số được tối ưu riêng, không thể quy toàn bộ chênh lệch cho riêng việc dùng CRF.
 - Frequent chỉ có hai gold entity và cả ba mô hình không nhận diện đúng entity nào thuộc nhóm này; đây không phải bằng chứng rằng biểu diễn ký tự không hữu ích với thực thể phổ biến.
 
 ## 8. Phân tích lỗi
 
 Notebook lưu ví dụ lỗi vào [`wnut17_error_examples.csv`](./wnut17_error_examples.csv). Một số dạng lỗi quan sát được ở mô hình đề xuất:
 
-1. **Sai ranh giới:** gold `Gurez sector [location]`, dự đoán chỉ `Gurez [location]`.
-2. **Bỏ sót tên riêng nhiều token:** bỏ sót `Colonel Rajesh Kalia [person]`, trong khi dự đoán các đoạn chồng lấn như `Defence Spokesman Colonel Rajesh Kalia [person]` hoặc `Rajesh Kalia [person]`.
-3. **Gán nhãn thực thể cho từ thường:** dự đoán `inhospitable terrain [location]` hoặc `military spokesman [location]`.
-4. **Entity mới/ít ngữ cảnh:** các tên mới, viết tắt và tên tổ chức như `ART` dễ bị bỏ sót hoặc gán sai loại.
+1. **Sai ranh giới:** các span nhiều token như `Gurez sector [location]` có thể bị tách/cắt ranh giới.
+2. **Bỏ sót tên riêng nhiều token:** ví dụ `Colonel Rajesh Kalia [person]`.
+3. **Nhầm loại hoặc dự đoán thừa:** tên viết tắt/tổ chức như `ANI` hoặc `ART` có thể bị bỏ sót hoặc gán nhãn entity không chính xác.
 
 Trong file lỗi, mỗi span gold bị bỏ sót được ghi là FN và mỗi span dự đoán thừa/sai ghi là FP. Một lỗi sai ranh giới hoặc loại có thể tạo đồng thời một bản ghi FN và một bản ghi FP; số dòng lỗi do đó không phải số câu lỗi độc lập.
 
-Các ví dụ gợi ý rằng character representation có thể cung cấp tín hiệu hữu ích để tăng recall, nhưng chưa giải quyết triệt để dự đoán thừa, phân biệt loại entity và ranh giới span. Cải thiện F1 nên được đọc cùng precision/recall và kiểm tra ví dụ cụ thể.
+Các ví dụ gợi ý rằng character representation đi kèm recall cao hơn trên nhóm unseen trong lần chạy này, nhưng mô hình vẫn mắc lỗi dự đoán thừa, phân biệt loại entity và ranh giới span. Cải thiện F1 nên được đọc cùng precision/recall và kiểm tra ví dụ cụ thể.
 
 ## 9. Kết luận
 
 Với split test và seed hiện tại, kết quả trả lời câu hỏi nghiên cứu như sau:
 
-> **Có bằng chứng thực nghiệm character-level representation giúp nhận diện unseen entity tốt hơn so với word-only BiLSTM-CRF trong cấu hình này.** Trên unseen, F1 tăng từ 0,0441 lên 0,0910 và bootstrap 95% CI của ΔF1 là [0,0265; 0,0655]. Với rare entity, F1 quan sát tăng nhưng khoảng tin cậy còn chứa 0 và số mẫu ít, nên chưa thể khẳng định mức cải thiện.
+> **Trong lần chạy này, character-level representation đi kèm F1 cao hơn trên unseen entity so với word-only BiLSTM-CRF.** F1 tăng từ 0,0752 lên 0,1475; bootstrap 95% CI của ΔF1 là [0,0489; 0,0974]. Tuy nhiên, trên rare entity, mô hình có character đạt F1 0,0000 so với 0,1538 của ablation. Không thể kết luận character luôn cải thiện kết quả; kết quả còn phụ thuộc nhóm entity và cấu hình.
 
-F1 tuyệt đối còn thấp, cho thấy cấu hình hiện tại vẫn gặp khó khăn trên WNUT 17. Các hạn chế gồm một seed, chỉ một split test, số lượng rare/frequent nhỏ, độ nhạy của phép ghép surface form, và chưa đánh giá riêng bằng các phép biến đổi nhiễu có kiểm soát. Nên chạy nhiều seed và báo cáo độ biến thiên giữa các lần huấn luyện trước khi xem kết quả là ổn định.
+Các hạn chế gồm một seed, một split test, số lượng rare/frequent nhỏ, random search giới hạn ở 8 cấu hình cho mỗi mô hình, độ nhạy của phép ghép surface form, và chưa đánh giá riêng bằng các phép biến đổi nhiễu có kiểm soát. Nên chạy nhiều seed và mở rộng tìm kiếm siêu tham số trước khi xem kết quả là ổn định.
 
 ## 10. Cách cài đặt và chạy
 
 ### Yêu cầu
 
-- Python 3.10+ (đã chạy với Python 3.13).
+- Python tương thích với phiên bản PyTorch được cài.
 - PyTorch; CUDA được dùng tự động nếu môi trường cài bản PyTorch hỗ trợ CUDA, nếu không sẽ chạy CPU.
-- Các thư viện: `datasets`, `numpy`, `pandas`, `matplotlib`.
+- Các thư viện: `datasets`, `numpy`, `pandas`, `matplotlib`, `scikit-learn`.
 - Có kết nối Internet lần đầu để tải dataset từ Hugging Face.
 
 ### Cài thư viện
@@ -243,7 +236,7 @@ F1 tuyệt đối còn thấp, cho thấy cấu hình hiện tại vẫn gặp k
 Trong notebook, bỏ comment ở cell setup nếu cần cài bổ sung:
 
 ```python
-%pip install datasets numpy pandas matplotlib
+%pip install datasets pandas matplotlib scikit-learn
 ```
 
 Cài PyTorch theo đúng phiên bản CUDA hoặc CPU tương thích với máy từ hướng dẫn cài đặt PyTorch chính thức.
@@ -252,14 +245,16 @@ Cài PyTorch theo đúng phiên bản CUDA hoặc CPU tương thích với máy 
 
 1. Mở `wnut17_character_ner.ipynb` bằng Jupyter hoặc VS Code.
 2. Chọn Python kernel có PyTorch và các thư viện trên.
-3. Chạy lần lượt từ trên xuống (`Run All`).
-4. Theo dõi log train, bảng metrics, bootstrap CI và ví dụ lỗi trong các cell cuối.
+3. Chạy lần lượt từ trên xuống (`Run All`); lần đầu cần Internet để tải WNUT 17 từ Hugging Face.
+4. Notebook mặc định chạy hyperparameter search (`RUN_TUNING = True`), sau đó train ba mô hình và tạo các file CSV ở thư mục làm việc.
 
-Lần chạy tham chiếu trong workspace dùng **Python 3.13.0, PyTorch 2.15.0+cpu**, seed 42. Không có CUDA trên môi trường đó. Do huấn luyện ba mô hình trên CPU có thể mất vài phút, có thể giảm `EPOCHS` để kiểm tra nhanh; kết quả khi đổi cấu hình sẽ không còn là kết quả báo cáo trong README.
+Kết quả được lưu trong notebook được tạo bằng **PyTorch 2.11.0+cu130 trên NVIDIA Tesla T4**, seed 42. Trên máy không có CUDA, notebook tự chuyển sang CPU; random search và huấn luyện có thể mất nhiều thời gian. Có thể đặt `RUN_TUNING = False` hoặc giảm epoch để chạy thử, nhưng kết quả sẽ khác các số liệu được báo cáo ở đây.
 
 ## 11. Tệp đầu ra
 
-- [`wnut17_character_ner.ipynb`](./wnut17_character_ner.ipynb): mã nguồn, log và kết quả của notebook.
+- [`wnut17_character_ner.ipynb`](./wnut17_character_ner.ipynb): mã nguồn, log và kết quả của notebook phiên bản tuned.
 - [`wnut17_entity_metrics.csv`](./wnut17_entity_metrics.csv): precision, recall, F1 và support theo mô hình/nhóm.
 - [`wnut17_ablation_bootstrap.csv`](./wnut17_ablation_bootstrap.csv): chênh lệch F1 và bootstrap CI.
 - [`wnut17_error_examples.csv`](./wnut17_error_examples.csv): ví dụ FN/FP và ngữ cảnh.
+
+Khi `RUN_TUNING = True`, notebook cũng tạo `wnut17_hyperparameter_search.csv` với kết quả các lượt random search trên validation.
