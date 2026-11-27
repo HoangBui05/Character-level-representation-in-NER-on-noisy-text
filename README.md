@@ -14,12 +14,12 @@
 
 ### Danh sách thành viên
 
-| STT | Họ và tên | Mã sinh viên | Lớp | Nhiệm vụ |
-|---:|---|---|---|---|
-| 1 | Bùi Huy Hoàng | 23174600033 | DHKL17A3HN | [Nhiệm vụ] |
-| 2 | Lê Anh Vũ | 23174600038 | DHKL17A3HN | [Nhiệm vụ] |
-| 3 | Nguyễn Văn Tuấn Hưng | 23174600057 | DHKL17A3HN | [Nhiệm vụ] |
-| 4 | Nguyễn Thị Phương Nhung | 23174600150 | DHKL17A3HN | [Nhiệm vụ] |
+| STT | Họ và tên | Mã sinh viên | Lớp | 
+|---:|---|---|---|
+| 1 | Bùi Huy Hoàng | 23174600033 | DHKL17A3HN | 
+| 2 | Lê Anh Vũ | 23174600038 | DHKL17A3HN | 
+| 3 | Nguyễn Văn Tuấn Hưng | 23174600057 | DHKL17A3HN | 
+| 4 | Nguyễn Thị Phương Nhung | 23174600150 | DHKL17A3HN | 
 
 
 ## 2. Tóm tắt đề tài
