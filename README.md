@@ -69,7 +69,7 @@ Việc xác định các nhóm chỉ dựa trên train, không dùng nhãn test 
 
 ## 4. Cấu trúc notebook và diễn biến thực nghiệm
 
-Toàn bộ mã nguồn, quy trình huấn luyện, đánh giá và phân tích lỗi nằm trong [`wnut17_character_ner_tuned.ipynb`](./wnut17_character_ner_tuned.ipynb). Các cell được tổ chức theo thứ tự:
+Toàn bộ mã nguồn, quy trình huấn luyện, đánh giá và phân tích lỗi nằm trong [`wnut17_character_ner.ipynb`](./wnut17_character_ner.ipynb). Các cell được tổ chức theo thứ tự:
 
 1. **Thiết lập thí nghiệm:** import thư viện, seed, device, hyperparameter và cấu hình reproducibility.
 2. **Nạp dữ liệu:** tải WNUT 17, kiểm tra features, nhãn và số lượng từng split.
@@ -80,6 +80,7 @@ Toàn bộ mã nguồn, quy trình huấn luyện, đánh giá và phân tích l
 7. **Huấn luyện:** huấn luyện lại từng mô hình bằng cấu hình được chọn, tối đa 30 epoch và early stopping theo validation.
 8. **Đánh giá trên test:** giải mã chuỗi nhãn, trích xuất span và tính precision/recall/F1 exact-span theo từng nhóm.
 9. **Ablation, bootstrap và phân tích lỗi:** so sánh word+character với word-only CRF bằng paired bootstrap theo câu; xuất bảng metrics, CI và các lỗi FN/FP.
+10. **Trực quan hóa insight:** vẽ F1 theo nhóm entity kèm support, bootstrap CI của mức chênh F1, tỷ lệ token/ký tự OOV theo split, đường học validation và phân bố FN/FP; xuất `wnut17_visual_insights.png` và `wnut17_error_breakdown.png`.
 
 ## 5. Xây dựng mô hình
 
